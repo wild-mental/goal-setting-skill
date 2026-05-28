@@ -3,9 +3,9 @@
 # goal-setting
 > Skill for Cursor, Claude, Codex agents
 
-**Claude Code의 `/goal` 명령에 바로 붙여넣을 수 있는, 완료 조건이 명확한 한 줄 프롬프트를 함께 설계해 주는 Skill입니다. Cursor, Claude Code, Codex 모두 지원합니다.**
+**Claude Code의 `/goal` 명령에 바로 붙여넣을 수 있는, 완료 조건이 명확한 구조화된 마크다운 프롬프트를 함께 설계해 주는 Skill입니다. Cursor, Claude Code, Codex 모두 지원합니다.**
 
-`/goal`은 "완료 조건을 만족할 때까지 여러 턴에 걸쳐 작업을 이어가는" 강력한 명령이지만, **조건을 모호하게 적으면 무한 반복·토큰 낭비·증명 불가 종료**가 발생합니다. 평가자는 도구를 실행하지 않고 파일도 직접 보지 않으며, 오직 대화에 드러난 내용만 보고 yes/no를 판단합니다. 이 스킬은 그 함정들을 **사전에 차단하는 행동 원칙**으로 고정합니다.
+`/goal`은 "완료 조건을 만족할 때까지 여러 턴에 걸쳐 작업을 이어가는" 강력한 명령이지만, **조건을 모호하게 적으면 무한 반복·토큰 낭비·증명 불가 종료**가 발생합니다. 평가자는 도구를 실행하지 않고 파일도 직접 보지 않으며, 오직 대화에 드러난 내용만 보고 yes/no를 판단합니다. 이 스킬은 그 함정들을 **사전에 차단하는 행동 원칙**으로 고정하고, 결과를 **Required 4 Sections + 필요 시 추가 섹션**의 마크다운 블록으로 산출합니다.
 
 ---
 
@@ -15,28 +15,36 @@
 
 - 측정 불가 형용사(`better`, `perfect`, `cleaner`, `fully`) 자동 거부
 - 평가자가 transcript에서 yes/no를 판정할 수 있는 **검증 동사**로 환원
-- 중단 절(`or stop after N turns / T minutes`) 누락 시 출력 차단
+- 종료 조건 절(turn cap, budget cap, queue empty 등) 누락 시 출력 차단
 
-### 2. 4-Element Structure를 강제한다
+### 2. Required 4 Sections + 추가 섹션 구조를 강제한다
 
 ```
-/goal [GOAL],
-prove it by [VERIFICATION] and show the result in the conversation,
-do not [CONSTRAINTS],
-or stop after [N turns / T minutes]
+/goal
+
+## 1) 작업 핵심 목표 및 범위
+## 2) 작업 세부 규칙
+## 3) 종료 조건 및 종료 방법
+## 4) 기타 제약조건
+
+## (선택) 5) ~ N) 추가 섹션 — 의존성·보고 포맷·외부 연동 등
 ```
 
-네 요소 중 하나라도 비면 `/goal` 프롬프트를 출력하지 않습니다. 누락된 것만 사용자에게 묻고 채웁니다.
+4섹션 중 하나라도 비면 `/goal` 프롬프트를 출력하지 않습니다. 누락된 항목만 사용자에게 묻고 채웁니다. 추가 섹션은 사용자 요청에 따라 유연하게 편성합니다.
 
 ### 3. Three Pillars 검증을 자동화한다
 
 ```
 Feasibility       → 측정 가능한 boolean 종료 상태인가?
 Demonstrability   → 검증 결과가 대화 transcript에 남는가?
-Boundedness       → or stop after ... 절이 있는가?
+Boundedness       → Section 3 종료 조건(turn cap / budget)이 있는가?
 ```
 
 세 기둥을 모두 통과한 결과만 사용자에게 전달됩니다.
+
+### 4. 출력은 시각적 행 구분자로 명확히 분리한다
+
+매 출력은 `---` 가로줄 3개로 4개 영역(의도 재진술 / `/goal` 프롬프트 / Self-Check / 사용 안내)을 분리합니다. 프롬프트 영역은 단일 마크다운 코드블록 안에 들어가 어디서부터 어디까지가 복사 대상인지 즉시 식별 가능합니다.
 
 ---
 
@@ -158,17 +166,19 @@ curl -fsSL https://raw.githubusercontent.com/wild-mental/goal-setting-skill/main
 ```
 Feasibility       — exit code, count, regex 같은 boolean 종료 상태로 환원
 Demonstrability   — 검증 결과를 대화 transcript에 surface
-Boundedness       — or stop after N turns / T minutes 필수
+Boundedness       — Section 3 종료 조건(turn cap / budget) 필수
 ```
 
-### 4-Element Structure 필수
+### Required 4 Sections 필수
 
-| 요소 | 절 형태 |
-|------|--------|
-| Goal | `[목표 동사 + 구체적 대상]` |
-| Verification | `prove it by [command(s)] and show [result] in the conversation` |
-| Constraints | `do not [금지 범위]` |
-| Stop Clause | `or stop after [N turns / T minutes]` |
+| 섹션 | 핵심 항목 |
+|------|----------|
+| 1) 작업 핵심 목표 및 범위 | 한 문장 목표 · 시작 지점 · 작업 대상 · 자율성 수준 |
+| 2) 작업 세부 규칙 | 워크플로 · 브랜치/PR · 의사결정 기록 · 도구 사용 규칙 |
+| 3) 종료 조건 및 종료 방법 | 종료 조건(budget·turn cap·queue empty 등) + 종료 시 실행할 검증·상태 확인 명령 |
+| 4) 기타 제약조건 | 금지 행동 · 수정 금지 파일 · 활성 범위 외 변경 금지 |
+
+추가 섹션(`## 5)` ~ `## N)`)은 사용자 요청·작업 특성에 따라 유연하게 편성 (의존성·보고 포맷·외부 연동·보안 정책 등).
 
 ### 측정 불가 형용사 자동 거부
 
@@ -198,14 +208,38 @@ Boundedness       — or stop after N turns / T minutes 필수
 
 ## 표준 템플릿
 
-```
-/goal [GOAL],
-prove it by [VERIFICATION COMMANDS] and show the result in the conversation,
-do not [CONSTRAINTS],
-or stop after [N turns / T minutes]
-```
+````markdown
+/goal
 
-### 작업 유형별 권장 stop 값
+## 1) 작업 핵심 목표 및 범위
+- [한 문장 단일 목표]
+- 시작 지점: [브랜치/이슈/커밋]
+- 작업 대상: [범위·이슈 목록·디렉터리]
+- 작업 자율성: [어디까지 승인 없이 진행 가능]
+
+## 2) 작업 세부 규칙
+- [워크플로 / 사이클]
+- [브랜치·PR 전략]
+- [의사결정 기록 / 카운터 / 로그 파일]
+- [도구·명령 사용 규칙]
+
+## 3) 종료 조건 및 종료 방법
+- 종료 조건 (아래 중 하나라도 충족되는 순간 루프를 즉시 멈춘다):
+  - [budget A → STOP REASON: <CODE_A>]
+  - [budget B → STOP REASON: <CODE_B>]
+  - 평가-진행 라운드(turn) 누적 N회 도달 → STOP REASON: TURN_CAP (= or stop after N turns)
+- 종료 방법:
+  1) [기록 작업]
+  2) [검증 명령 실행 → exit 0 / 0 matches / 카운트 일치 등 출력을 대화에 surface]
+  3) [상태 확인 명령 실행 → 카운터·PR 목록·이슈 목록을 대화에 surface]
+
+## 4) 기타 제약조건
+- [금지 행동: main 머지, 자동배포 유발 등]
+- [수정 금지 파일·디렉터리]
+- [활성 범위 외 변경 금지, 단 예외: ...]
+````
+
+### 작업 유형별 권장 turn cap
 
 | 작업 유형 | 권장 N |
 |----------|--------|
@@ -213,6 +247,7 @@ or stop after [N turns / T minutes]
 | 리팩터링 | 15–25 turns |
 | 마이그레이션 | 20–30 turns |
 | 문서 작업 | 8–12 turns |
+| 멀티 이슈 자동화 루프 | 30–60 turns |
 
 ---
 
@@ -220,34 +255,80 @@ or stop after [N turns / T minutes]
 
 스킬이 `/goal` 프롬프트를 출력하기 전에 자동으로 확인합니다.
 
-- [ ] Feasible — 측정 가능한 boolean 종료 상태인가?
-- [ ] Demonstrable — 검증 결과가 대화 transcript에 남는가?
-- [ ] Bounded scope — 변경 범위가 제한되었는가?
-- [ ] Stop clause — `or stop after N turns / T minutes`가 포함됐는가?
-- [ ] Atomic — 한 줄 안에 단일 목표인가?
+- [ ] Required Sections — 1) 목표·범위 2) 세부규칙 3) 종료조건+방법 4) 제약 모두 채움
+- [ ] Feasible — Section 1 목표가 boolean으로 측정 가능
+- [ ] Demonstrable — Section 3 종료 방법의 검증 명령 출력이 대화에 surface됨
+- [ ] Bounded scope — Section 4 제약이 변경 범위를 명시
+- [ ] Stop clause — Section 3 종료 조건에 turn cap 또는 명시적 budget 포함
+- [ ] Atomic — 단일 목표 (Section 1이 하나의 완료 기준)
 
-다섯 항목 중 하나라도 fail이면 사용자에게 환원 제안만 주고 프롬프트는 출력하지 않습니다.
+여섯 항목 중 하나라도 fail이면 사용자에게 환원 제안만 주고 프롬프트는 출력하지 않습니다.
 
 ---
 
 ## 출력 예시
 
-**입력:** "legacyAuth을 newAuth로 전부 마이그레이션"
+매 호출의 최종 응답은 `---` 가로줄 3개로 4영역이 분리됩니다. 사용자는 `/goal` 코드블록 한 덩어리만 Claude Code에 그대로 붙여넣으면 됩니다.
 
-**출력:**
+**입력:** "lecture-hub 후속 이슈를 ISSUE_LIST.md 순서대로 자동 구현. main 머지·자동배포는 금지."
 
-```
-/goal migrate all usages of legacyAuth to newAuth in src/auth, prove it by running grep -rn legacyAuth src/ and showing 0 matches AND running npm test exits 0, both results shown in the conversation, do not modify tests/legacy or database migration files, or stop after 25 turns
+**출력 (요약):**
+
+````
+**[의도 재진술]** ISSUE_LIST.md 순서대로 해소 가능한 이슈를 TDD 사이클과 stack형 draft PR로 자동 구현하면서, 의사결정 budget과 turn cap으로 안전하게 멈추는 멀티 이슈 루프 /goal을 만든다.
+
+---
+
+**[/goal 프롬프트 — 아래 코드블록 전체를 그대로 복사해 Claude Code에 붙여넣으세요]**
+
+```markdown
+/goal
+
+## 1) 작업 핵심 목표 및 범위
+- 목표: lecture-hub 후속 구현을 자동화 루프로 진행한다.
+- 시작 지점: 선행 이슈가 모두 해소된 다음 착수 지점.
+- 작업 대상: docs/issues/ISSUE_LIST.md 순서의 열린 이슈 중 선행 이슈가 해소되어 있고 아직 PR이 없는 것.
+- 작업 자율성: 종료 조건 도달 또는 모든 구현 완료 시까지 자율 진행.
+
+## 2) 작업 세부 규칙
+- 브랜치 전략: 각 이슈는 TDD(Red→Green→Refactor→Report→PR)를 따르고 선행 feat/* 위에 stack형 draft PR로 분기.
+- 의사결정 로그: docs/loop/DECISION_LOG.md 에 CORE/MINOR 분류로 기록, grep 가능한 카운터 `CORE: N` · `MINOR: M` 유지.
+
+## 3) 종료 조건 및 종료 방법
+- 종료 조건 (아래 중 하나라도 충족되는 순간 루프를 즉시 멈춘다):
+  - CORE 카운터가 3에 도달 → STOP REASON: CORE_BUDGET
+  - MINOR 카운터가 10에 도달 → STOP REASON: MINOR_BUDGET
+  - 선행 이슈가 해소된 열린 이슈가 더 없음 → STOP REASON: NO_UNBLOCKED_ISSUES
+  - 평가-진행 라운드(turn) 누적 40회 도달 → STOP REASON: TURN_CAP (= or stop after 40 turns)
+- 종료 방법:
+  1) docs/loop/DECISION_LOG.md 마지막 줄에 `STOP REASON: <원인>` 한 줄 덧붙임.
+  2) `pnpm typecheck && pnpm test && pnpm lint && pnpm build` 네 명령 exit 0 출력을 대화에 남김.
+  3) `cat docs/loop/DECISION_LOG.md` 로 카운터와 STOP REASON 줄을 대화에 남김.
+  4) `gh pr list` 로 draft PR 목록을 대화에 남김.
+
+## 4) 기타 제약조건
+- 어떤 PR도 main에 merge하지 않으며, Vercel 자동배포를 유발하지 않는다.
+- docs/PRD_v1.0.md, docs/issues/ISSUE_LIST.md, docs/PRD_OPEN_DECISIONS.md 는 수정하지 않는다.
+- 활성 이슈의 구현 범위 밖 파일은 수정하지 않는다 (단 docs/loop/DECISION_LOG.md 와 reports/ 는 예외).
 ```
 
-```
-Self-Check:
-- [x] Feasible — grep 결과 0과 test exit 0로 판정
-- [x] Demonstrable — grep 출력과 exit code가 대화에 남음
-- [x] Bounded scope — tests/legacy, DB migration 제외 명시
-- [x] Stop clause — 25 turns
-- [x] Atomic — 단일 마이그레이션 목표
-```
+---
+
+**[Self-Check]**
+
+- [x] Required Sections — 4섹션 모두 채움
+- [x] Feasible — STOP REASON 코드별로 boolean 판정 가능
+- [x] Demonstrable — 4개 검증 명령 + DECISION_LOG + gh pr list 결과가 대화에 surface
+- [x] Bounded scope — 수정 금지 파일·자동배포 금지·범위 외 변경 금지 명시
+- [x] Stop clause — CORE/MINOR budget + NO_UNBLOCKED_ISSUES + 40 turns
+- [x] Atomic — 단일 자동화 루프 목표
+
+---
+
+**[사용 안내]** 위 코드블록을 그대로 Claude Code에 붙여넣어 실행하세요. `/goal`만 입력하면 진행 상태와 평가자 판단 이유를 확인할 수 있습니다.
+````
+
+> 위 출력 예시는 README에서 4-backtick fence로 감싼 데모입니다. 실제 스킬 출력 시 사용자에게는 일반 마크다운으로 렌더링되며, `/goal` 프롬프트 본문만 3-backtick `` ```markdown ... ``` `` 코드블록 안에 들어가 한 덩어리로 복사할 수 있습니다.
 
 ---
 
@@ -261,14 +342,14 @@ Self-Check:
 
 | 섹션 | 내용 |
 |------|------|
-| 기본 원칙 | 측정·증명·경계·단일성·중단 절 필수 |
+| 기본 원칙 | 측정·증명·경계·단일성·종료 조건·시각적 행 구분자 필수 |
 | Three Pillars | Feasibility / Demonstrability / Boundedness 정의·검증 표 |
-| 4-Element Structure | Goal / Verification / Constraints / Stop Clause 필수 4요소 |
+| Required Sections | 4섹션 정의(목표·범위 / 세부규칙 / 종료조건+방법 / 제약) + Optional 추가 섹션 |
 | Workflow | Intake → Audit → Mapping → Anti-Pattern Block → Output 5단계 |
 | Verification Catalog | 테스트·린트·타입체크·grep·gh 등 검증 명령 모음 |
-| 시나리오 예시 | 버그·리팩터링·마이그레이션·문서·이슈 5종 |
-| Refusal 패턴 | 측정 불가·증명 불가·중단 절 누락·복합 목표 처리 |
-| 출력 형식 | 재진술 + 코드블록 + Self-Check + 사용 안내 1줄 |
+| 시나리오 예시 | 단일 버그 / 멀티 이슈 자동화 루프 / 마이그레이션(추가 섹션) |
+| Refusal 패턴 | 측정 불가·증명 불가·종료 조건 누락·복합 목표·섹션 누락 처리 |
+| 출력 형식 | 의도 재진술 + /goal 코드블록 + Self-Check + 사용 안내 (3개의 `---`로 분리) |
 
 ---
 
@@ -334,11 +415,15 @@ post_install.claude=live reload; restart if new top-level .claude/skills/ after 
 post_install.codex=restart if skill not detected
 
 contract:
-  output_must_contain=[restated_intent, single /goal codeblock, 5-item Self-Check, 1-line usage hint]
+  output_must_contain=[restated_intent, single /goal markdown codeblock with Required 4 Sections, 6-item Self-Check, 1-line usage hint]
+  output_must_separate_areas_with=3 horizontal rules (---) between [intent | /goal block | Self-Check | usage hint]
   output_must_not_execute=/goal  # this skill designs the prompt only
-  must_reject_if_missing=[Goal, Verification, Constraints, StopClause]
+  required_sections=[1) 작업 핵심 목표 및 범위, 2) 작업 세부 규칙, 3) 종료 조건 및 종료 방법, 4) 기타 제약조건]
+  optional_sections=5)+ as needed (dependencies, report format, external integration, security, etc.)
+  must_reject_if_missing_any_required_section=true
   must_reject_adjectives=[better, cleaner, perfect, fully, correct, nice, good]
-  must_include_clause=or stop after N turns | or stop after T minutes
+  must_include_in_section_3=[stop conditions with STOP REASON codes, turn cap or budget, verification commands that surface output in conversation]
+  prompt_block_fence=```markdown ... ```  # single fenced code block, copy-friendly
 ```
 
 ---
