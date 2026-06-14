@@ -332,6 +332,26 @@ Boundedness       — Section 3 종료 조건(turn cap / budget) 필수
 
 ---
 
+## 긴 입력·긴 출력 자동 외부화
+
+장시간 작업용 상세 요구사항은 한 번에 대화로 주고받기엔 길어지기 쉽습니다. 스킬은 두 경우를 자동으로 파일로 분리합니다(문서 경로 `<docs>`는 기존 문서 디렉터리, 없으면 `docs/`; `<slug>`는 목표 한 문장에서 뽑은 kebab-case).
+
+### A. 이미 장문 구조 프롬프트가 있을 때
+
+사용자가 자체 섹션·체계를 갖춘 **긴 요구사항 프롬프트**를 이미 가지고 있으면 스킬 템플릿에 억지로 끼워 맞추지 않습니다. **원래 구조를 최대한 보존**하고 의도가 또렷해지도록 최소 수정만 한 뒤 `<docs>/goals/original-requirements/<slug>.md`에 저장하고, `/goal`의 `## 2) 작업 세부 규칙`에서 그 파일을 참조해 세부 규칙을 적용하도록 지시합니다.
+
+### B. `/goal` 본문이 4,000자를 넘을 때
+
+생성된 `/goal` 본문이 4,000자를 초과하면 `<docs>/goals/<slug>.md`에 전문을 저장하고, 대화에는 한 줄짜리 호출 프롬프트만 제공합니다.
+
+```
+/goal 지금부터 <docs>/goals/<slug>.md 에 명시된 목표를 달성하기 위한 작업을 시작하라
+```
+
+A로 세부 규칙을 외부화하면 본문이 짧아져 B 임계값을 넘지 않을 수 있고, 그래도 넘으면 B로 `/goal` 자체도 파일화합니다.
+
+---
+
 ## 스킬 구성
 
 ```
@@ -350,6 +370,7 @@ Boundedness       — Section 3 종료 조건(turn cap / budget) 필수
 | 시나리오 예시 | 단일 버그 / 멀티 이슈 자동화 루프 / 마이그레이션(추가 섹션) |
 | Refusal 패턴 | 측정 불가·증명 불가·종료 조건 누락·복합 목표·섹션 누락 처리 |
 | 출력 형식 | 의도 재진술 + /goal 코드블록 + Self-Check + 사용 안내 (3개의 `---`로 분리) |
+| 산출물 외부화 | 장문 입력은 `goals/original-requirements/`에 원 구조 보존·참조, 4,000자 초과 `/goal`은 `goals/`에 저장 후 호출 프롬프트 제공 |
 
 ---
 
@@ -424,6 +445,9 @@ contract:
   must_reject_adjectives=[better, cleaner, perfect, fully, correct, nice, good]
   must_include_in_section_3=[stop conditions with STOP REASON codes, turn cap or budget, verification commands that surface output in conversation]
   prompt_block_fence=```markdown ... ```  # single fenced code block, copy-friendly
+  docs_root=<docs> = existing docs dir, else docs/ ; <slug> = kebab-case from Section 1 goal
+  externalize_existing_long_input=preserve user's structure, lightly edit for clarity, save to <docs>/goals/original-requirements/<slug>.md, reference it from /goal Section 2
+  externalize_long_output=if /goal body > 4000 chars, save full prompt to <docs>/goals/<slug>.md and return only call prompt "/goal 지금부터 <docs>/goals/<slug>.md 에 명시된 목표를 달성하기 위한 작업을 시작하라"
 ```
 
 ---
