@@ -3,6 +3,8 @@
 # goal-setting
 > Skill for Cursor, Claude, Codex agents
 
+**Language / 언어:** [한국어](README.md) · [English](README.en.md)
+
 **Claude Code의 `/goal` 명령에 바로 붙여넣을 수 있는, 완료 조건이 명확한 구조화된 마크다운 프롬프트를 함께 설계해 주는 Skill입니다. Cursor, Claude Code, Codex 모두 지원합니다.**
 
 `/goal`은 "완료 조건을 만족할 때까지 여러 턴에 걸쳐 작업을 이어가는" 강력한 명령이지만, **조건을 모호하게 적으면 무한 반복·토큰 낭비·증명 불가 종료**가 발생합니다. 평가자는 도구를 실행하지 않고 파일도 직접 보지 않으며, 오직 대화에 드러난 내용만 보고 yes/no를 판단합니다. 이 스킬은 그 함정들을 **사전에 차단하는 행동 원칙**으로 고정하고, 결과를 **Required 4 Sections + 필요 시 추가 섹션**의 마크다운 블록으로 산출합니다.
